@@ -8,6 +8,8 @@
     """
 # The first thing to do is to import the regexp module into our script
 import re
+import datetime
+from copy import deepcopy
 
 def exercise1(fileName="messages_syslog_class.txt"):
     """Compute ranking of usernames according to number of login attempts
@@ -22,8 +24,8 @@ def exercise1(fileName="messages_syslog_class.txt"):
     text_string = text.read()
     failed = re.findall(r'Failed\spassword\sfor\sinvalid\suser\s(?P<user>.*?) ', text_string)
     success = re.findall(r'session\sopened\sfor\suser\s(?P<user>.*?) ', text_string)
-    loging_attemps = failed + success
-    for word in loging_attemps:
+    login_attemps = failed + success
+    for word in login_attemps:
         count = frequency.get(word, 0)
         frequency[word] = count + 1
 
@@ -96,11 +98,47 @@ def exercise3(fileName="./messages_syslog_class.txt"):
 
 def exercise4(fileName="./messages_syslog_class.txt"):
     """Compute the reverse ranking of average period between login attempts (in seconds)
-        
+
         Keyword arguments:
         fileName -- path + name of file containing ssh system log events
         """
+    # Opening the file in read mode
+    login_attempts = {}
+    text = open(fileName, "r")
+    text_string = text.readlines()
+    for row in text_string:
+        attempt = re.search('(.*) crowds-ml sshd\[(.*)\]:.*[user|for] (.*) from (.*) port .*', row)
+        if attempt != None:
+            login_attempts[attempt.group(2)] = (attempt.group(1), attempt.group(3), attempt.group(4))
 
-    # Function body
+    print(login_attempts)
+    ip_users_attempts = {}
+    # trying to initialize the list in order to put the date
+    for u in login_attempts:
+        ip_users_attempts[login_attempts[u][2]] = []
+    for u in login_attempts:
+        ip_users_attempts[login_attempts[u][2]].append(
+            datetime.datetime.strptime(login_attempts[u][0], '%b %d  %H:%M:%S'))
+    ip_users_avg_con = {}
+    # Calculating the average of the connexions in seconds
+    for u in ip_users_attempts:
+        T = [0] * (len(ip_users_attempts[u]) - 1)
+        cpt = 0
+        avg = 0
+        if (len(ip_users_attempts[u]) > 1):
+            for i in range(len(ip_users_attempts[u]) - 1):
+                T[cpt] = abs((ip_users_attempts[u][i] - ip_users_attempts[u][i + 1])).total_seconds()
+                cpt += 1
+            avg = sum(T) / len(T)
+            ip_users_avg_con[u] = avg
+    # deleting users with only one connexion attempt
+    ip_users_avg_con_ = deepcopy(ip_users_avg_con)
+    for u in ip_users_avg_con_:
+        if ip_users_avg_con[u] == 0:
+            del ip_users_avg_con[u]
+    # sorting the avg connexion of the users by their IP connexion.
+    ip_users_avg_con = sorted(ip_users_avg_con.items(), key=lambda kv: kv[1], reverse=False)
+    return ip_users_avg_con
 
-print(exercise3())
+print(exercise4())
+
